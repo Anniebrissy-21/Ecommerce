@@ -3,7 +3,7 @@ from django.utils.text import slugify
 
 # Create your models here.
 
-class Products(models.Model):
+class Product(models.Model):
     CATEGORY = (
         ("Electronics", "ELECTRONICS"),
         ("Gloceries", "GLOCERIES"),
@@ -24,7 +24,7 @@ class Products(models.Model):
             self.slug = slugify(self.name)
             unique_slug = self.slug
             counter = 1
-            if Products.objects.filter(slug=unique_slug).exists():
+            if Product.objects.filter(slug=unique_slug).exists():
                 unique_slug = f'{self.slug}-{counter}'
                 counter += 1
             self.slug = unique_slug

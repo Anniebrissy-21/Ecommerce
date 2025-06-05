@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser
+from shop_apps.models import Product
 
 # Register your models here.
 
@@ -14,3 +15,4 @@ class CustomUserAdmin(UserAdmin):
     )
 
 admin.site.register(CustomUser, CustomUserAdmin)
+admin.site.register(Product)
