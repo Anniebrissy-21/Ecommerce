@@ -1,11 +1,16 @@
 from django.shortcuts import render
-from rest_framework.decorators import api_view
-from .models import Product, Cart, CartItem
-from .serializers import ProductSerializer, DetailProductSerializer, CartSerializer, CartItemSerializer, CartCountSerializer
+from rest_framework.decorators import api_view, permission_classes
+from .models import Product, Cart, CartItem, Transaction
+from .serializers import ProductSerializer, DetailProductSerializer, UserSerializer, CartSerializer, CartItemSerializer, CartCountSerializer
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from decimal import Decimal
+import uuid
 
 # Create your views here.
+
+BASE_URL = "htp://localhost:5713"
 
 @api_view(["GET"])
 def products(request):
@@ -88,3 +93,60 @@ def delete_cartitem(request):
     cartitem = CartItem.objects.get(id=cartitem_id)
     cartitem.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_username(request):
+    user = request.user
+    return Response({"username": user.username})
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_info(request):
+    user = request.user
+    serializer = UserSerializer(user)
+    return Response(serializer.data)
+
+def initiate_payment(request):
+    if request.user:
+        # try:
+            #generate a unique transaction reference
+            tx_ref = str(uuid.uuid4())
+            cart_code = request.data.get("cart_code")
+            cart = Cart.objects.get(cart_code = cart_code)
+            user = request.user
+
+            amount = [item.quantity * item.product.price for item in cart.items.all()]
+            total_amount = amount + tax
+            tax = Decimal("4.00")
+            currency = "USD"
+            redirect_url = f"{BASE_URL}/payment-status/"
+
+            transaction = Transaction.objects.create(
+                ref = tx_ref,
+                cart = cart,
+                amount = total_amount,
+                currency = currency,
+                user = user,
+                status = 'pending'
+            )
+
+            flutterwave_payload = {
+                "tx_ref": tx_ref,
+                "amount": str(total_amount),
+                "currency": currency,
+                "redirect_url": redirect_url,
+                "customer": {
+                    "email": user.email,
+                    "name": user.username,
+                    "phonenumber": user.phone
+                },
+                "customizations": {
+                    "title": "Shopit Payment"
+                }
+            }
+
+            # headers = {
+			# 	"Authorization": f"Bearer ${settings.FLUTTERWAVE_SECRET_KEY}",
+			# 	"Content-Type": 'application/json',
+			# },
