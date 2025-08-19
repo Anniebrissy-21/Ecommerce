@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser
-from shop_apps.models import Product, Cart, CartItem
+from shop_apps.models import Product, Cart, CartItem, Transaction
 
 # Register your models here.
 
@@ -18,3 +18,4 @@ admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(Product)
 admin.site.register(Cart)
 admin.site.register(CartItem)
+admin.site.register(Transaction)
