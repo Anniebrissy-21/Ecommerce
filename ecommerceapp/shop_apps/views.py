@@ -10,11 +10,12 @@ from django.conf import settings
 import uuid
 import requests
 import paypalrestsdk
+from  django.conf import settings
 # from ecommerceapp import settings
 
 # Create your views here.
 
-BASE_URL = "http://localhost:5173"
+BASE_URL = settings.REACT_BASE_URL
 
 paypalrestsdk.configure({
     "mode": settings.PAYPAL_MODE,
@@ -287,25 +288,35 @@ def initiate_paypal_payment(request):
         else:
             return Response({"error": payment.error}, status=400)
         
-@api_view(['POST','GET'])
+@api_view(['POST', 'GET'])
+@permission_classes([IsAuthenticated])
 def paypal_payment_callback(request):
     payment_id = request.query_params.get('paymentId')
     payer_id = request.query_params.get('payerId')
     ref = request.query_params.get('ref')
 
-    user = request.user
-    transaction = Transaction.objects.get(ref=ref)
+    if not payment_id or not payer_id or not ref:
+        return Response({"error": "Missing payment details"}, status=400)
 
-    if payment_id and payer_id:
+    try:
         payment = paypalrestsdk.Payment.find(payment_id)
+    except paypalrestsdk.ResourceNotFound:
+        return Response({"error": "Payment not found"}, status=404)
+
+    if payment.execute({"payer_id": payer_id}):
+        try:
+            transaction = Transaction.objects.get(ref=ref)
+        except Transaction.DoesNotExist:
+            return Response({"error": "Transaction not found"}, status=404)
+
         transaction.status = 'completed'
         transaction.save()
+
         cart = transaction.cart
         cart.paid = True
-        cart.user = user
+        cart.user = request.user
         cart.save()
-        return Response({"message": "Payment successful", "subMessage": "You have successfully mage payment for the items you purchased"})
-    
-    else:
-        return Response({"error": "Invalid payment details"}, status=400)
 
+        return Response({"message": "Payment successful", "subMessage": "You have successfully made payment for the items you purchased"})
+    else:
+        return Response({"error": payment.error}, status=400)
